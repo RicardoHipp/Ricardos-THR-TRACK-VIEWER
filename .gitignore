@@ -1,7 +1,8 @@
 # Ignoriere alles
 *
 
-# Aber erlaube den Viewer und das Update-Skript
+# Aber erlaube diese wichtigen Dateien:
 !Ricardos_TRACK_VIEWER.html
 !update.bat
 !.gitignore
+!LICENSE
