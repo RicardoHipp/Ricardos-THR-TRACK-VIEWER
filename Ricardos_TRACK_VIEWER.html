@@ -59,7 +59,7 @@
                     <canvas id="cursorCanvas" width="1200" height="1200"
                         style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
                 </div>
-                <button onclick="downloadTrack()" style="width: 100%; padding: 1rem; font-size: 1.1rem;">💾 Save Modified .thr</button>
+                <button onclick="downloadTrack()" style="width: 100%; padding: 1rem; font-size: 1.1rem; margin-top: auto;">💾 Save Modified .thr</button>
             </div>
 
             <!-- Right: Sidebar (Stats + Controls) -->
@@ -170,13 +170,11 @@
                             </div>
                         </div>
 
-                        <div style="margin-bottom: 1.5rem;">
-                        </div>
                     </div>
 
                     <!-- Code Preview -->
                     <div
-                        style="background: var(--surface-color); padding: 1.5rem; border-radius: 1rem; display: flex; flex-direction: column;">
+                        style="background: var(--surface-color); padding: 1.5rem; border-radius: 1rem; display: flex; flex-direction: column; flex: 1;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                             <div style="display: flex; align-items: center; gap: 1rem;">
                                 <h3 style="margin: 0;">Code Preview & Edit</h3>
@@ -185,7 +183,7 @@
                             <button onclick="toggleHelp()" style="background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; cursor: pointer; padding: 0;">?</button>
                         </div>
                         <pre id="codePreview"
-                            style="background: var(--bg-color); padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.8rem; overflow: hidden; height: 480px; margin: 0; color: #a5b4fc;"></pre>
+                            style="background: var(--bg-color); padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.8rem; overflow: hidden; flex: 1; margin: 0; color: #a5b4fc;"></pre>
                     </div>
                 </div>
 
