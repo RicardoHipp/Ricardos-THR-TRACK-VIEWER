@@ -1,13 +1,17 @@
 # Ignoriere alles
 *
 
-# Erlaube diese wichtigen Dateien:
+# Aber schau in Ordner hinein (wichtig!)
+!*/
+
+# Erlaube diese wichtigen Dateien im Hauptverzeichnis:
 !Ricardos_TRACK_VIEWER.html
 !.gitignore
 !LICENSE
 !README.md
 !bild.png
+!update.bat
 
-# Erlaube Ordner und deren Inhalt
-!JS/
-!CSS/
+# Erlaube explizit den Inhalt dieser Ordner:
+!JS/**
+!CSS/**

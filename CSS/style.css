@@ -1,0 +1,286 @@
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --accent-color: #38bdf8;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            min-height: 100vh;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            width: 100%;
+            background-color: var(--surface-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            color: var(--accent-color);
+        }
+
+        .header-btn {
+            justify-self: start;
+            background-color: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .header-btn:hover {
+            background-color: rgba(56, 189, 248, 0.1);
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            /* Changed from center */
+            width: 100%;
+            max-width: 1400px;
+            /* Wider to fit side-by-side */
+            padding: 2rem;
+            gap: 2rem;
+        }
+
+        .workspace {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 2rem;
+            width: 100%;
+            display: none;
+            /* Hidden initially, controlled by JS */
+        }
+
+        .upload-zone {
+            width: 100%;
+            max-width: 600px;
+            padding: 3rem;
+            border: 2px dashed var(--text-secondary);
+            border-radius: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background-color: rgba(30, 41, 59, 0.5);
+            margin-top: 10vh;
+            /* Push down a bit */
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--accent-color);
+            background-color: rgba(56, 189, 248, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            flex-shrink: 0;
+            background-color: var(--surface-color);
+            border-radius: 50%;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 0 50px rgba(56, 189, 248, 0.1);
+            overflow: hidden;
+            /* display: none; */
+            /* Hidden until loaded - now controlled by parent .workspace */
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .sidebar {
+            flex: 1;
+            /* Take remaining space */
+            min-width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 1.5rem;
+            /* Allow wrapping only on very small screens, otherwise side-by-side */
+            flex-wrap: wrap;
+        }
+
+        .controls-row>div {
+            flex: 1;
+            /* Reduced min-width to allow side-by-side fitting even in narrower sidebar */
+            min-width: 250px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            /* Back to 3 cols as sidebar is wider */
+            gap: 1rem;
+            width: 100%;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .stat-card {
+            background-color: var(--surface-color);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            /* Slightly smaller for sidebar */
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter 0.2s;
+            margin-top: 0;
+            /* Reset */
+            /* display: none; */
+            /* Removed, buttons are always visible within controls */
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        /* MODAL STYLES */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            /* Hidden by default via JS manually */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background-color: var(--surface-color);
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 0 50px rgba(56, 189, 248, 0.2);
+            text-align: center;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        /* GALLERY STYLES */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        .track-card {
+            background-color: var(--surface-color);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .track-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-color);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        .thumbnail-container {
+            width: 100%;
+            aspect-ratio: 1;
+            background-color: var(--bg-color);
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        .thumbnail-container canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .track-title {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
+            margin-bottom: 0.25rem;
+        }
+
+        .track-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
