@@ -129,6 +129,8 @@
             gap: 1.5rem;
             /* Allow wrapping only on very small screens, otherwise side-by-side */
             flex-wrap: wrap;
+            flex: 1;
+            align-items: stretch;
         }
 
         .controls-row>div {
