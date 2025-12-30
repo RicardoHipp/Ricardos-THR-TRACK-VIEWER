@@ -51,33 +51,22 @@
         </div>
 
         <div class="workspace" id="workspace">
-            <!-- Left: Canvas -->
-            <div class="canvas-container" id="canvasContainer">
-                <canvas id="trackCanvas" width="1200" height="1200"
-                    style="position: absolute; top: 0; left: 0;"></canvas>
-                <canvas id="cursorCanvas" width="1200" height="1200"
-                    style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+            <!-- Left: Canvas + Save -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem; align-items: center;">
+                <div class="canvas-container" id="canvasContainer">
+                    <canvas id="trackCanvas" width="1200" height="1200"
+                        style="position: absolute; top: 0; left: 0;"></canvas>
+                    <canvas id="cursorCanvas" width="1200" height="1200"
+                        style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+                </div>
+                <button onclick="downloadTrack()" style="width: 100%; padding: 1rem; font-size: 1.1rem;">💾 Save Modified .thr</button>
             </div>
 
             <!-- Right: Sidebar (Stats + Controls) -->
             <div class="sidebar">
 
-                <!-- Stats moved here -->
-                <div class="stats" id="statsPanel">
-                    <div class="stat-card">
-                        <div class="stat-value" id="pointCount">0</div>
-                        <div class="stat-label">Points</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="startTheta">0.00</div>
-                        <div class="stat-label">Start Theta</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="maxRho">0.00</div>
-                        <div class="stat-label">Max Radius</div>
-                    </div>
-                </div>
-
+                <!-- Stats removed -->
+                
                 <div class="controls-row">
                     <!-- Controls moved here -->
                     <div id="controls" style="background: var(--surface-color); padding: 1.5rem; border-radius: 1rem;">
@@ -103,22 +92,24 @@
                                 </label>
                             </div>
                             <!-- Pre-Clean Checkbox -->
-                            <div style="margin-top: 0.75rem;">
+                            <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
                                 <label
                                     style="display: flex; align-items: center; gap: 0.5rem; color: #94a3b8; cursor: pointer; font-size: 0.9rem;">
                                     <input type="checkbox" id="preCleanCheck" onchange="handlePreCleanChange()"
                                         style="accent-color: #94a3b8;">
                                     Pre-Clean (Wipe)
                                 </label>
+                                <button onclick="normalizeTrack()"
+                                    style="background-color: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 0.4rem;">Reset to 0</button>
                             </div>
                         </div>
 
-                        <div style="margin-bottom: 1.5rem;">
+                        <div style="margin-bottom: 1rem;">
                             <!-- Cleaning Circles Slider -->
                             <label
-                                style="display: block; color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 0.875rem;">Cleaning
+                                style="display: block; color: var(--text-secondary); margin-bottom: 0.25rem; font-size: 0.875rem;">Cleaning
                                 Circles (Integer)</label>
-                            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem;">
+                            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
                                 <input type="range" id="circlesSlider" min="-100" max="100" step="1" value="0"
                                     style="flex: 1; accent-color: var(--accent-color);">
                                 <input type="number" id="circlesInput" min="-100" max="100" step="1" value="0"
@@ -126,12 +117,12 @@
                             </div>
 
                             <!-- Fine Rotation Slider -->
-                            <div style="margin-bottom: 1.5rem;">
+                            <div style="margin-bottom: 0.75rem;">
                                 <!-- Fine Rotation Slider -->
                                 <label
-                                    style="display: block; color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 0.875rem;">Fine
+                                    style="display: block; color: var(--text-secondary); margin-bottom: 0.25rem; font-size: 0.875rem;">Fine
                                     Rotation (0-360°)</label>
-                                <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem;">
+                                <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
                                     <input type="range" id="fineSlider" min="0" max="360" step="1" value="0"
                                         style="flex: 1; accent-color: var(--accent-color);">
                                     <input type="number" id="fineInput" min="0" max="360" step="1" value="0"
@@ -140,7 +131,7 @@
 
                                 <!-- Track Thickness Slider -->
                                 <label
-                                    style="display: block; color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 0.875rem;">Track
+                                    style="display: block; color: var(--text-secondary); margin-bottom: 0.25rem; font-size: 0.875rem;">Track
                                     Thickness & Style</label>
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                                     <input type="range" id="thicknessSlider" min="1" max="50" step="1" value="15"
@@ -165,6 +156,11 @@
                             </div>
 
                             <label
+                                style="display: block; color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 0.75rem;">Progress</label>
+                            <input type="range" id="progressSlider" min="0" max="100" value="0"
+                                style="width: 100%; accent-color: var(--accent-color); margin-bottom: 1rem;">
+
+                            <label
                                 style="display: block; color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 0.75rem;">Speed</label>
                             <div style="display: flex; gap: 0.5rem; align-items: center;">
                                 <input type="range" id="speedSlider" min="1" max="100" step="1" value="10"
@@ -175,20 +171,21 @@
                         </div>
 
                         <div style="margin-bottom: 1.5rem;">
-                            <button onclick="normalizeTrack()"
-                                style="width: 100%; background-color: var(--surface-color); border: 1px solid var(--text-secondary); color: var(--text-primary);">Reset
-                                to 0</button>
-                            <button onclick="downloadTrack()" style="display: block; width: 100%;">💾 Save Modified
-                                .thr</button>
                         </div>
                     </div>
 
                     <!-- Code Preview -->
                     <div
-                        style="background: var(--surface-color); padding: 1.5rem; border-radius: 1rem; flex: 1; min-height: 200px; display: flex; flex-direction: column;">
-                        <h3 style="margin-top: 0; margin-bottom: 1rem;">Preview (First 10 lines)</h3>
+                        style="background: var(--surface-color); padding: 1.5rem; border-radius: 1rem; display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <h3 style="margin: 0;">Code Preview & Edit</h3>
+                                <span id="headerPointCount" style="color: var(--text-secondary); font-size: 0.9rem; font-weight: normal;">(0 pts)</span>
+                            </div>
+                            <button onclick="toggleHelp()" style="background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; cursor: pointer; padding: 0;">?</button>
+                        </div>
                         <pre id="codePreview"
-                            style="background: var(--bg-color); padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.8rem; overflow-x: auto; flex: 1; margin: 0; color: #a5b4fc;"></pre>
+                            style="background: var(--bg-color); padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.8rem; overflow: hidden; height: 480px; margin: 0; color: #a5b4fc;"></pre>
                     </div>
                 </div>
 
@@ -218,6 +215,36 @@
                     style="background-color: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary);">
                     No, keep as is
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HELP MODAL -->
+    <div id="helpModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0; color: var(--accent-color);">How to Edit Tracks</h2>
+                <button onclick="toggleHelp()" style="background: transparent; color: var(--text-secondary); font-size: 1.5rem; padding: 0;">&times;</button>
+            </div>
+            
+            <div style="color: var(--text-primary); line-height: 1.6; font-size: 0.95rem;">
+                <h4 style="color: #38bdf8; margin-bottom: 0.5rem; margin-top: 0;">Navigation</h4>
+                <ul style="margin-top: 0; color: var(--text-secondary);">
+                    <li><strong>Blue Cursor:</strong> Shows the current playback position.</li>
+                    <li><strong>Scroll Wheel:</strong> Hover over the Code Preview list and scroll to move the blue cursor frame-by-frame.</li>
+                    <li><strong>Slider:</strong> Drag the progress bar to jump quickly.</li>
+                </ul>
+
+                <h4 style="color: #f43f5e; margin-bottom: 0.5rem;">Selection & Deletion</h4>
+                <ul style="margin-top: 0; color: var(--text-secondary);">
+                    <li><strong>Red Cursor (Select):</strong> Click on any line in the code list to select it. A <strong>red dot</strong> will appear on the track. This is your target for editing.</li>
+                    <li><strong>Delete Point:</strong> Once selected (Red), click the <strong>Trash Icon (🗑️)</strong> in the list or <strong>Right-Click</strong> the red line to remove the point.</li>
+                    <li><strong>Undo:</strong> Made a mistake? Press <strong>Ctrl + Z</strong> to undo your last change.</li>
+                </ul>
+            </div>
+
+            <div style="margin-top: 2rem; text-align: center;">
+                <button onclick="toggleHelp()" style="background-color: var(--surface-color); border: 1px solid var(--text-secondary);">Close Help</button>
             </div>
         </div>
     </div>

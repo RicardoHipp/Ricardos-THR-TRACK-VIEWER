@@ -39,7 +39,24 @@ const speedSlider = document.getElementById('speedSlider');
 const speedValue = document.getElementById('speedValue');
 const fineSlider = document.getElementById('fineSlider');
 const fineInput = document.getElementById('fineInput');
+const progressSlider = document.getElementById('progressSlider');
 const playBtn = document.getElementById('playBtn');
+
+progressSlider.addEventListener('input', (e) => {
+    selectedIndex = -1; // Exit edit mode
+    const idx = parseInt(e.target.value);
+    playCursor.index = idx;
+    playCursor.t = 0.0;
+    
+    if (currentTrackData.length > 0) {
+        const safeIdx = Math.min(idx, currentTrackData.length - 1);
+        const p = currentTrackData[safeIdx];
+        lastDrawnPoint = getXY(p.theta, p.rho);
+    }
+
+    fullRedraw(idx);
+    updateCodeScroll(idx);
+});
 const codePreview = document.getElementById('codePreview');
 const fixStartModal = document.getElementById('fixStartModal');
 const modalCurrentStart = document.getElementById('modalCurrentStart');
@@ -51,6 +68,8 @@ let originalTrackData = [];
 let originalFilename = "track.thr";
 let pendingTrackData = null; 
 let showRotationHint = true;
+let undoStack = [];
+let selectedIndex = -1;
 
 // Playback State
 let isPlaying = false;
@@ -95,7 +114,6 @@ function showEditor() {
         backBtn.onclick = resetView;
         galleryBtn.style.display = 'none';
     }
-    setTimeout(() => { document.getElementById('statsPanel').style.opacity = '1'; }, 50);
 }
 
 function resetView() {
@@ -367,11 +385,14 @@ speedSlider.addEventListener('input', (e) => { speedValue.textContent = e.target
 
 function togglePlay() {
     if (isPlaying) {
-        stopPlay();
+        pausePlay();
     } else {
+        selectedIndex = -1; // Exit edit mode
         isPlaying = true;
         playBtn.textContent = "⏸ Pause";
         playBtn.style.backgroundColor = "#eab308";
+        
+        // If we are at the end or haven't started, reset to start
         if (!lastDrawnPoint || playCursor.index >= currentTrackData.length - 1) {
             playCursor = { index: 0, t: 0.0 };
             fullRedraw(0);
@@ -382,14 +403,76 @@ function togglePlay() {
     }
 }
 
+function pausePlay() {
+    isPlaying = false;
+    if (animationId) cancelAnimationFrame(animationId);
+    playBtn.textContent = "▶ Resume";
+    playBtn.style.backgroundColor = "var(--accent-color)";
+    // Redraw up to current point to ensure clean state
+    fullRedraw(playCursor.index);
+    // Keep code view at current position
+    updateCodeScroll(playCursor.index);
+}
+
 function stopPlay() {
     isPlaying = false;
+    selectedIndex = -1; // Reset selection
     if (animationId) cancelAnimationFrame(animationId);
     playBtn.textContent = "▶ Play";
     playBtn.style.backgroundColor = "var(--accent-color)";
     fullRedraw();
     playCursor = { index: currentTrackData.length - 1, t: 1.0 };
     lastDrawnPoint = null;
+    updateStats(); // Restore static view
+}
+
+function updateCodeScroll(currentIndex) {
+    if (!currentTrackData.length) {
+        codePreview.innerHTML = '';
+        return;
+    }
+    
+    const visibleLines = 25; // 20 past + 1 current + 4 future
+    const preferredPast = 20;
+    
+    let start = currentIndex - preferredPast;
+    
+    // Adjust start if it goes below 0 (Start of track)
+    if (start < 0) {
+        start = 0;
+    }
+    
+    let end = start + visibleLines;
+    
+    // Adjust end if it goes beyond track length (End of track)
+    if (end > currentTrackData.length) {
+        end = currentTrackData.length;
+        // Try to pull start back to fill the window
+        start = Math.max(0, end - visibleLines);
+    }
+
+    let html = '';
+    for (let i = start; i < end; i++) {
+        const p = currentTrackData[i];
+        const lineText = `${i + 1}: ${p.theta.toFixed(5)} ${p.rho.toFixed(5)}`;
+        
+        let classes = 'code-line';
+        let content = `<span>${lineText}</span>`;
+        
+        // Priority: Red Selection with trash can
+        if (i === selectedIndex) {
+            classes += ' selected';
+            content += `<button class="delete-btn" title="Delete Point">🗑️</button>`;
+        } 
+        
+        // Also Blue Highlight for the playhead/view limit
+        if (i === currentIndex) {
+            classes += ' highlight-line';
+        }
+        
+        html += `<div class="${classes}" data-index="${i}">${content}</div>`;
+    }
+    codePreview.innerHTML = html;
 }
 
 function animate() {
@@ -436,7 +519,35 @@ function animate() {
         if (playCursor.t >= 0.9999) { playCursor.index++; playCursor.t = 0.0; }
     }
     if (hasPointsInPath) renderPathBatch(currentPath, currentMode, thickness);
-    if (lastDrawnPoint) drawCursorAt(lastDrawnPoint);
+    
+    // REDRAW ALL CURSORS (Blue animated, Red static)
+    cursorCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    if (lastDrawnPoint) {
+        let angle = null;
+        if (playCursor.index < currentTrackData.length - 1) {
+            const p1 = currentTrackData[playCursor.index];
+            const p2 = currentTrackData[playCursor.index + 1];
+            angle = Math.atan2(getXY(p2.theta, p2.rho).y - getXY(p1.theta, p1.rho).y, getXY(p2.theta, p2.rho).x - getXY(p1.theta, p1.rho).x);
+        }
+        drawCursorAt(lastDrawnPoint, angle, false); // Draw Blue Playhead (animated)
+    }
+    
+    // Always draw Red Selection if it exists
+    if (selectedIndex !== -1 && selectedIndex < currentTrackData.length) {
+        const pSel = currentTrackData[selectedIndex];
+        const posSel = getXY(pSel.theta, pSel.rho);
+        let angleSel = null;
+        if (selectedIndex < currentTrackData.length - 1) {
+            const pNext = currentTrackData[selectedIndex + 1];
+            angleSel = Math.atan2(getXY(pNext.theta, pNext.rho).y - posSel.y, getXY(pNext.theta, pNext.rho).x - posSel.x);
+        }
+        drawCursorAt(posSel, angleSel, true); // Draw Red Selection (static)
+    }
+    
+    // Update scrolling code view and slider
+    updateCodeScroll(playCursor.index);
+    progressSlider.value = playCursor.index;
+
     if (playCursor.index >= currentTrackData.length - 1) stopPlay();
     else animationId = requestAnimationFrame(animate);
 }
@@ -515,19 +626,68 @@ function setPatternHighlightStyle(ctx, t) {
     ctx.globalAlpha = 1.0;
 }
 
-function drawCursorAt(pos) {
-    cursorCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+function drawCursorAt(pos, angle = null, isSelection = false) {
+    const primaryColor = isSelection ? '#f43f5e' : '#38bdf8'; // Red vs Blue
+    
+    // Draw Arrow if angle is provided
+    if (angle !== null && !isNaN(angle)) {
+        cursorCtx.save();
+        cursorCtx.translate(pos.x, pos.y);
+        cursorCtx.rotate(angle);
+        cursorCtx.beginPath();
+        cursorCtx.moveTo(25, 0); 
+        cursorCtx.lineTo(10, -8);
+        cursorCtx.lineTo(10, 8);
+        cursorCtx.closePath();
+        cursorCtx.fillStyle = (isPlaying && !isSelection) ? '#eab308' : primaryColor; 
+        cursorCtx.shadowColor = 'black';
+        cursorCtx.shadowBlur = 4;
+        cursorCtx.fill();
+        cursorCtx.restore();
+    }
+
+    // Draw the Ball
     cursorCtx.beginPath(); cursorCtx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
     const grad = cursorCtx.createRadialGradient(pos.x - 3, pos.y - 3, 1, pos.x, pos.y, 8);
-    grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, '#94a3b8');
+    
+    if (isSelection) {
+        grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, '#9f1239'); 
+    } else {
+        grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, '#94a3b8'); 
+    }
+    
     cursorCtx.fillStyle = grad; cursorCtx.shadowColor = '#000000'; cursorCtx.shadowBlur = 10; cursorCtx.fill();
     cursorCtx.beginPath(); cursorCtx.arc(pos.x - 3, pos.y - 3, 2, 0, Math.PI * 2);
     cursorCtx.fillStyle = 'white'; cursorCtx.shadowBlur = 0; cursorCtx.fill();
 }
+
 function drawCursor(index) {
+    cursorCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    // 1. Draw Blue Playhead (Normal Cursor)
     const safeIndex = Math.min(Math.max(0, index), currentTrackData.length - 1);
-    if (safeIndex < 0) return;
-    drawCursorAt(getXY(currentTrackData[safeIndex].theta, currentTrackData[safeIndex].rho));
+    if (safeIndex >= 0) {
+        const p1 = currentTrackData[safeIndex];
+        const pos1 = getXY(p1.theta, p1.rho);
+        let angle = null;
+        if (safeIndex < currentTrackData.length - 1) {
+            const p2 = currentTrackData[safeIndex + 1];
+            angle = Math.atan2(getXY(p2.theta, p2.rho).y - pos1.y, getXY(p2.theta, p2.rho).x - pos1.x);
+        }
+        drawCursorAt(pos1, angle, false); // isSelection = false (Blue)
+    }
+
+    // 2. Draw Red Selection Point (if exists)
+    if (selectedIndex !== -1 && selectedIndex < currentTrackData.length) {
+        const pSel = currentTrackData[selectedIndex];
+        const posSel = getXY(pSel.theta, pSel.rho);
+        let angleSel = null;
+        if (selectedIndex < currentTrackData.length - 1) {
+            const pNext = currentTrackData[selectedIndex + 1];
+            angleSel = Math.atan2(getXY(pNext.theta, pNext.rho).y - posSel.y, getXY(pNext.theta, pNext.rho).x - posSel.x);
+        }
+        drawCursorAt(posSel, angleSel, true); // isSelection = true (Red)
+    }
 }
 
 function drawSegment(startIndex, endIndex, targetCtx = null) {
@@ -576,30 +736,48 @@ function drawSegment(startIndex, endIndex, targetCtx = null) {
 }
 
 function fullRedraw(limitIndex = -1) {
-    const limit = (limitIndex === -1 || limitIndex > currentTrackData.length) ? currentTrackData.length : limitIndex;
+    // Determine the target point index we want to draw up to.
+    // If limitIndex is -1, we want the last point (length - 1).
+    // If limitIndex is specified (e.g. 10), we want point 10.
+    const targetIndex = (limitIndex === -1 || limitIndex >= currentTrackData.length) 
+        ? currentTrackData.length - 1 
+        : limitIndex;
+
     const patternIdx = getPatternStartIdx();
     ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.beginPath(); ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'; ctx.lineWidth = 2;
     ctx.arc(CENTER_X, CENTER_Y, MAX_RADIUS, 0, Math.PI * 2); ctx.stroke();
+    
     if (currentTrackData.length < 2) return;
+
+    // Optimization Logic adapted for targetIndex
     if (isCirclePreview && isPatternCacheValid && patternIdx > 0 && limitIndex === -1) {
-        ctx.drawImage(patternCacheCanvas, 0, 0); drawSegment(0, patternIdx);
+        ctx.drawImage(patternCacheCanvas, 0, 0); 
+        drawSegment(0, patternIdx);
     } else {
         if (isCirclePreview && !isPatternCacheValid && patternIdx > 0 && limitIndex === -1) {
-            patternCacheCtx.clearRect(0,0,1200,1200); drawSegment(patternIdx, currentTrackData.length - 1, patternCacheCtx);
+            patternCacheCtx.clearRect(0,0,1200,1200); 
+            // Cache draws everything from patternIdx to End
+            drawSegment(patternIdx, currentTrackData.length - 1, patternCacheCtx);
             isPatternCacheValid = true;
         }
+        
         if (isCirclePreview && isPatternCacheValid && limitIndex === -1) {
-            drawSegment(0, patternIdx); ctx.drawImage(patternCacheCanvas, 0, 0);
+            drawSegment(0, patternIdx); 
+            ctx.drawImage(patternCacheCanvas, 0, 0);
         } else {
-            drawSegment(0, limit - 1);
+            // Standard drawing (dynamic or no cache)
+            drawSegment(0, targetIndex);
+            
             if (limitIndex === -1 && !isPatternCacheValid) {
-                 patternCacheCtx.clearRect(0,0,1200,1200); drawSegment(patternIdx, currentTrackData.length - 1, patternCacheCtx);
+                 patternCacheCtx.clearRect(0,0,1200,1200); 
+                 drawSegment(patternIdx, currentTrackData.length - 1, patternCacheCtx);
                  isPatternCacheValid = true;
             }
         }
     }
-    drawRotationHandle(); drawCursor(limit - 1);
+    drawRotationHandle(); 
+    drawCursor(targetIndex);
 }
 
 function drawRotationHandle() {
@@ -732,15 +910,18 @@ function handleDrag(e) { const angle = getAngleFromEvent(e); fineSlider.value = 
 
 function updateStats() {
     storedRotationStart = parseFloat(fineSlider.value) || 0;
-    document.getElementById('pointCount').textContent = currentTrackData.length.toLocaleString();
+    
+    // Update Header Point Count
+    const countEl = document.getElementById('headerPointCount');
+    if (countEl) countEl.textContent = `(${currentTrackData.length.toLocaleString()} pts)`;
+    
+    // Update Slider
+    progressSlider.max = Math.max(0, currentTrackData.length - 1);
+    progressSlider.value = playCursor.index;
+
     if (currentTrackData.length > 0) {
-        const idx = findStartIndex(currentTrackData);
-        document.getElementById('startTheta').textContent = (currentTrackData[idx] ? currentTrackData[idx].theta : 0).toFixed(2);
-        document.getElementById('maxRho').textContent = Math.max(...currentTrackData.map(p => p.rho)).toFixed(4);
-        let previewText = ""; const linesToShow = Math.min(15, currentTrackData.length);
-        for (let i = 0; i < linesToShow; i++) { previewText += `${i + 1}: ${currentTrackData[i].theta.toFixed(5)} ${currentTrackData[i].rho.toFixed(5)}\n`; }
-        if (currentTrackData.length > 15) previewText += `... (${currentTrackData.length - linesToShow} more lines)`;
-        codePreview.textContent = previewText;
+        // Update the interactive code preview immediately
+        updateCodeScroll(playCursor.index);
     }
 }
 
@@ -749,3 +930,136 @@ dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.clas
 dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
 dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); const files = e.dataTransfer.files; if (files.length) handleFiles(files); });
 fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFiles(e.target.files); });
+
+// Mouse Wheel Scrubbing on Code Preview
+codePreview.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    
+    if (isPlaying) pausePlay();
+    
+    // Exit selection mode on scrub
+    if (selectedIndex !== -1) {
+        selectedIndex = -1;
+    }
+
+    const direction = e.deltaY > 0 ? 1 : -1;
+    let newIndex = playCursor.index + direction;
+    
+    // Bounds check
+    newIndex = Math.max(0, Math.min(newIndex, currentTrackData.length - 1));
+    
+    if (newIndex !== playCursor.index) {
+        playCursor.index = newIndex;
+        playCursor.t = 0.0;
+        
+        // Update View
+        fullRedraw(newIndex);
+        updateCodeScroll(newIndex);
+        progressSlider.value = newIndex;
+        
+        // Update lastDrawnPoint for smooth continuation
+        const p = currentTrackData[newIndex];
+        lastDrawnPoint = getXY(p.theta, p.rho);
+    }
+}, { passive: false });
+
+// --- UNDO & DELETE LOGIC ---
+
+function saveUndoState() {
+    // Limit stack size to 50 to save memory
+    if (undoStack.length > 50) undoStack.shift();
+    // Deep copy current track data
+    undoStack.push(currentTrackData.map(p => ({...p})));
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+    currentTrackData = undoStack.pop();
+    selectedIndex = -1; // Reset selection
+    
+    // Bounds check for cursor
+    if (playCursor.index >= currentTrackData.length) {
+        playCursor.index = currentTrackData.length - 1;
+    }
+    
+    fullRedraw(playCursor.index);
+    updateStats();
+    updateCodeScroll(playCursor.index);
+    progressSlider.max = Math.max(0, currentTrackData.length - 1);
+    progressSlider.value = playCursor.index;
+}
+
+function deletePoint(index) {
+    if (isPlaying) pausePlay();
+    saveUndoState();
+    
+    currentTrackData.splice(index, 1);
+    selectedIndex = -1; // Deselect after delete
+    
+    if (playCursor.index >= currentTrackData.length) {
+        playCursor.index = Math.max(0, currentTrackData.length - 1);
+    } else if (index < playCursor.index) {
+        playCursor.index--;
+    }
+
+    fullRedraw(playCursor.index);
+    updateStats();
+    updateCodeScroll(playCursor.index);
+    progressSlider.max = Math.max(0, currentTrackData.length - 1);
+    progressSlider.value = playCursor.index;
+}
+
+// Interaction on Code Preview (Select & Delete)
+codePreview.addEventListener('click', (e) => {
+    // Handle Delete Button
+    if (e.target.classList.contains('delete-btn')) {
+        const line = e.target.closest('.code-line');
+        if (line) deletePoint(parseInt(line.dataset.index));
+        return;
+    }
+
+    // Handle Selection (Just mark the point, don't jump the playhead)
+    const line = e.target.closest('.code-line');
+    if (line) {
+        const idx = parseInt(line.dataset.index);
+        if (!isNaN(idx)) {
+            selectedIndex = idx;
+            // Redraw everything to show the new selection dot on top
+            fullRedraw(playCursor.index);
+            updateCodeScroll(playCursor.index);
+        }
+    }
+});
+
+// Right-Click to Delete (only on selected/target line)
+codePreview.addEventListener('contextmenu', (e) => {
+    const line = e.target.closest('.code-line');
+    if (!line) return;
+    
+    const idx = parseInt(line.dataset.index);
+    
+    // Only allow context menu on the SELECTED line
+    if (idx !== selectedIndex) {
+        return; // Allow default menu or do nothing
+    }
+    
+    e.preventDefault();
+    deletePoint(idx);
+});
+
+// Ctrl+Z for Undo
+window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        undo();
+    }
+});
+
+function toggleHelp() {
+    const m = document.getElementById('helpModal');
+    if (m.classList.contains('active')) {
+        m.classList.remove('active');
+    } else {
+        m.classList.add('active');
+    }
+}
