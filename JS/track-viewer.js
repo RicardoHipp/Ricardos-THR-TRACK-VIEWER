@@ -680,23 +680,33 @@ function applyRotations(forceRaw = false) {
             }
         }
         currentTrackData = currentTrackData.concat(patternPoints);
-    } else {
-        currentTrackData = [...patternPoints]; cachedPatternStartIdx = 0;
-        
-        if (!forceRaw) {
-            const startPos = document.querySelector('input[name="startPos"]:checked').value;
-            const desiredStartRho = startPos === 'edge' ? 1.0 : 0.0;
-            let needStartPoint = true;
-            if (currentTrackData.length > 0) { if (Math.abs(currentTrackData[0].rho - desiredStartRho) < 0.05 && Math.abs(currentTrackData[0].theta) < 0.1) needStartPoint = false; }
-            if (needStartPoint) { currentTrackData.unshift({ theta: 0.0, rho: desiredStartRho }); cachedPatternStartIdx = 1; }
+        } else {
+            currentTrackData = [...patternPoints]; cachedPatternStartIdx = 0;
+    
+            // Only restore/force a start point if the ORIGINAL data had one (idx > 0)
+            // OR if the user explicitly wants one via Pre-Clean (handled in if-block above).
+            // For "Keep as is" files (idx === 0), we do NOT add a point here.
+            if (idx > 0) {
+                const startPos = document.querySelector('input[name="startPos"]:checked').value;
+                const desiredStartRho = startPos === 'edge' ? 1.0 : 0.0;
+                currentTrackData.unshift({ theta: 0.0, rho: desiredStartRho });
+                cachedPatternStartIdx = 1;
+            }
         }
+        if (currentTrackData.length === 0) currentTrackData.push({ theta: 0, rho: 0 });
+        stopPlay(); playCursor = { index: 0, t: 0.0 }; lastDrawnPoint = null; fullRedraw(); updateStats();
     }
-    if (currentTrackData.length === 0) currentTrackData.push({ theta: 0, rho: 0 });
-    stopPlay(); playCursor = { index: 0, t: 0.0 }; lastDrawnPoint = null; fullRedraw(); updateStats();
-}
-
-function findStartIndex(data) { for (let i = 0; i < data.length; i++) { if (Math.abs(data[i].theta) < 0.001 && Math.abs(data[i].rho) < 0.001) continue; return i; } return 0; }
-
+    
+    function findStartIndex(data) {
+        for (let i = 0; i < data.length; i++) {
+            // Skip Center Start (0,0)
+            if (Math.abs(data[i].theta) < 0.001 && Math.abs(data[i].rho) < 0.001) continue;
+            // Skip Edge Start (rho ~ 1.0, theta ~ 0)
+            if (Math.abs(data[i].theta) < 0.001 && Math.abs(data[i].rho - 1.0) < 0.001) continue;
+            return i;
+        }
+        return 0;
+    }
 function normalizeTrack() { circlesSlider.value = 0; circlesInput.value = 0; fineSlider.value = 0; fineInput.value = 0; applyRotations(); }
 
 function downloadTrack() {
