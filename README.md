@@ -2,6 +2,8 @@
 
 An interactive tool to visualize and modify `.thr` files for sand tables (Sisyphus, etc.).
 
+**🚀 [Hier kannst du den Track Viewer direkt nutzen](https://ricardohipp.github.io/Ricardos-TRACK-VIEWER/Ricardos_TRACK_VIEWER.html)**
+
 ## Preview
 
 ![Viewer Preview](bild.png)
